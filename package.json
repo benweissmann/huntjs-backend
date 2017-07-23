@@ -1,0 +1,9 @@
+{
+  "name": "libhunt-server",
+  "version": "1.0.0",
+  "description": "Library for building Hunt puzzle backends",
+  "main": "index.js",
+  "repository": "https://github.com/benweissmann/libhunt-server",
+  "author": "Ben Weissmann",
+  "license": "MIT"
+}
