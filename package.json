@@ -2,8 +2,27 @@
   "name": "libhunt-server",
   "version": "1.0.0",
   "description": "Library for building Hunt puzzle backends",
-  "main": "index.js",
+  "main": "node.js",
+  "browser": "browser.js",
   "repository": "https://github.com/benweissmann/libhunt-server",
   "author": "Ben Weissmann",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^4.3.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.7.0"
+  },
+  "dependencies": {
+    "babel-plugin-transform-flow-strip-types": "^6.22.0",
+    "babel-preset-es2015": "^6.24.1",
+    "body-parser": "^1.17.2",
+    "cors": "^2.8.4",
+    "express": "^4.15.3",
+    "express-mysql-session": "^1.2.2",
+    "express-session": "^1.15.4",
+    "mysql": "^2.14.1"
+  },
+  "scripts": {
+    "lint": "eslint ."
+  }
 }
