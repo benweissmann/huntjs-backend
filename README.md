@@ -71,20 +71,52 @@ HuntJS.post('/example4', ({ data }) => {
 
 // Getting and setting persistent session data
 HuntJS.post('/example5save', ({ data, session }) => {
-  session.set('mydata', data);
+  session.set({ mydata: data });
 
   return {
     saved: true,
   };
 });
 HuntJS.get('/example5load', ({ session }) => {
+  const sessionData = session.get({
+    defaultValue: { mydata: 10 },
+  });
+
   return {
-    savedData: session.mydata,
-  },
+    savedData: sessionData.mydata,
+  };
+});
+
+// Getting and setting team-wide session data
+//
+// A few notes about team-wide data:
+//   - We authenticate the user's team, so the user cannot reset team-wide
+//     data by just clearing their cookies (like they can with session data)
+//   - When setting default team-wide data, it's safe to dynamically generate
+//     the default values (e.g. randomize the value). The team-wide data
+//     storage system has been designed to handle concurrency -- even if two
+//     requests come in simulatenously, only one server will set the default
+//     value and the other server will load that value.
+//   - Fetching and saving team-wide data is asynchronous. Use async/await.
+HuntJS.post('/example6save', async ({ data, team }) => {
+  await team.set({ someData: data });
+
+  return {
+    saved: true,
+  };
+});
+HuntJS.get('/example6load', ({ session }) => {
+  const teamData = await team.get({
+    defaultValue: { someData: Math.random() },
+  });
+
+  return {
+    savedData: teamData.someData,
+  };
 });
 
 // Returning an error
-HuntJS.get('/example6', ({ data }) => {
+HuntJS.get('/example7', ({ data }) => {
   if (data.password !== 'letmein') {
     // First argument is the HTTP error code, the second is an error that
     // will be returned to the user.
@@ -94,17 +126,11 @@ HuntJS.get('/example6', ({ data }) => {
   }
 });
 
-// Returning a promise (for asynchronous responses)
-HuntJS.get('/example7', () => {
-  return new Promise((resolve, reject) => {
-    doSomethingSlow((err, result) => {
-      if (err) {
-        reject(HuntJS.Error(500, 'Something failed'));
-      } else {
-        resolve({ some: 'data' });
-      }
-    });
-  });
+// We're running on Node 8, so you can use async functions
+HuntJS.get('/example8', async () => {
+  const x = await doSomethingThatReturnsAPromise();
+
+  resolve({ result: x });
 });
 ```
 

@@ -1,12 +1,17 @@
+const redis = require('redis');
+const rateLimiter = require('redis-rate-limiter');
+
+const redisClient = redis.createClient(process.env.HUNT_REDIS_URL, {
+  enable_offline_queue: false,
+});
+
 function getTeamIdFromReq(req) {
   // TODO: look at session token in req, get team ID from auth DB
   return 'test-team';
 }
 
 function errorIsDuplicateKeyError(err) {
-  // TODO
-  console.log(err);
-  return true;
+  return err.code === 'ER_DUP_ENTRY';
 }
 
 module.exports.teamAPI = function teamAPI(req, mysqlPool) {
@@ -42,7 +47,6 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
           return;
         }
 
-        setTimeout(() => {
         // Try to save default values back to the DB
         mysqlPool.query('INSERT INTO team_data SET ?', [
           { team: getTeamId(), data: JSON.stringify(defaultValue) },
@@ -63,14 +67,13 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
           // we inserted successfully
           resolve(defaultValue);
         });
-        }, 1000);
       });
     });
   }
 
   function set(newValue) {
     return new Promise((resolve, reject) => {
-      mysqlPool.query('UPDATE team_data SET ?', { data: JSON.stringify(newValue) }, (err, results) => {
+      mysqlPool.query('UPDATE team_data SET ?', { data: JSON.stringify(newValue) }, (err) => {
         if (err) {
           reject(err);
         } else {
@@ -81,6 +84,40 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
   }
 
   return { get, set };
+};
+
+module.exports.makeRateLimiter = function makeRateLimiter(rateLimitPerMinute) {
+  if (!rateLimitPerMinute) {
+    // return a noop
+    return () => Promise.resolve();
+  }
+
+  const limit = rateLimiter.create({
+    redis: redisClient,
+    key: getTeamIdFromReq,
+    rate: `${rateLimitPerMinute}/minute`,
+  });
+
+  return function applyLimit(req) {
+    return new Promise((resolve, reject) => {
+      limit(req, (err, rate) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (rate.over) {
+          const overLimitError = new Error('Rate limiter over limit');
+          overLimitError.userMessage = `Rate limit exceeded. Limit is ${rateLimitPerMinute} per minute.`;
+          overLimitError.statusCode = 429;
+          reject(err);
+          return;
+        }
+
+        resolve();
+      });
+    });
+  };
 };
 
 module.exports.initDB = function initDB(mysqlPool) {

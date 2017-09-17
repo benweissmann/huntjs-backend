@@ -62,25 +62,33 @@ function returnPromise(fn) {
   return Promise.resolve(result);
 }
 
-function callHandler(handler, data, req, res) {
-  returnPromise(() => handler({
-    data,
-    session: sessionAPI(req),
-    team: teamData.teamAPI(req, mysqlPool),
-  })).then(resp => res.json(resp))
-    .catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error(err);
+async function callHandler(handler, data, req, res, rateLimit) {
+  let response;
 
-      const statusCode = err.statusCode || 500;
-      const message = err.userMessage || 'Server Error';
+  try {
+    response = await returnPromise(() => handler({
+      data,
+      session: sessionAPI(req),
+      team: teamData.teamAPI(req, mysqlPool),
+    }));
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(err);
 
-      res.status(statusCode).json({ error: message });
-    });
+    const statusCode = err.statusCode || 500;
+    const message = err.userMessage || 'Server Error';
+
+    res.status(statusCode).json({ error: message });
+    return;
+  }
+
+  res.json(response);
 }
 
 module.exports = {
-  get(route, handler) {
+  get(route, handler, options) {
+    const rateLimit = options ? options.rateLimitPerMinute : null;
+
     app.get(route, (req, res) => {
       let data;
       if (req.query.data) {
@@ -94,13 +102,15 @@ module.exports = {
         }
       }
 
-      callHandler(handler, data, req, res);
+      callHandler(handler, data, req, res, rateLimit);
     });
   },
 
-  post(route, handler) {
+  post(route, handler, options) {
+    const rateLimit = options ? options.rateLimitPerMinute : null;
+
     app.post(route, (req, res) => {
-      callHandler(handler, req.body, req, res);
+      callHandler(handler, req.body, req, res, rateLimit);
     });
   },
 
