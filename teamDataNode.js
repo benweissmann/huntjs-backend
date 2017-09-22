@@ -106,7 +106,7 @@ module.exports.makeRateLimiter = function makeRateLimiter(rateLimitPerMinute) {
           const overLimitError = new Error('Rate limiter over limit');
           overLimitError.userMessage = `Rate limit exceeded. Limit is ${rateLimitPerMinute} per minute.`;
           overLimitError.statusCode = 429;
-          reject(err);
+          reject(overLimitError);
           return;
         }
 
