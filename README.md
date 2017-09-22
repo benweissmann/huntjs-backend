@@ -40,7 +40,7 @@ import HuntJS from 'huntjs-server';
 HuntJS.get('/example1', () => {
   // This can be any data that can be JSON-encoded
   return {
-    some: 'response';
+    some: 'response',
   };
 });
 
@@ -56,7 +56,7 @@ HuntJS.get('/example2', ({ data }) => {
 HuntJS.post('/example3', () => {
   // This can be any data that can be JSON-encoded
   return {
-    some: 'response';
+    some: 'response',
   };
 });
 
@@ -115,8 +115,17 @@ HuntJS.get('/example6load', ({ session }) => {
   };
 });
 
+// Rate-limiting
+HuntJS.get('/example7', () => {
+  return {
+    some: 'data',
+  };
+}, {
+  rateLimitPerMinute: 10
+});
+
 // Returning an error
-HuntJS.get('/example7', ({ data }) => {
+HuntJS.get('/example8', ({ data }) => {
   if (data.password !== 'letmein') {
     // First argument is the HTTP error code, the second is an error that
     // will be returned to the user.
@@ -127,7 +136,7 @@ HuntJS.get('/example7', ({ data }) => {
 });
 
 // We're running on Node 8, so you can use async functions
-HuntJS.get('/example8', async () => {
+HuntJS.get('/example9', async () => {
   const x = await doSomethingThatReturnsAPromise();
 
   resolve({ result: x });

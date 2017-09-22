@@ -63,6 +63,11 @@ function returnPromise(fn) {
 }
 
 async function callHandler(handler, data, req, res, rateLimit) {
+  if (rateLimit) {
+    console.log("LIMITING")
+    await rateLimit(req);
+  }
+
   let response;
 
   try {
@@ -87,7 +92,11 @@ async function callHandler(handler, data, req, res, rateLimit) {
 
 module.exports = {
   get(route, handler, options) {
-    const rateLimit = options ? options.rateLimitPerMinute : null;
+    const rateLimit = (options && options.rateLimitPerMinute)
+      ? teamData.makeRateLimiter(options.rateLimitPerMinute)
+      : null;
+
+    console.log("RATE LIMITER", rateLimit);
 
     app.get(route, (req, res) => {
       let data;
@@ -107,7 +116,9 @@ module.exports = {
   },
 
   post(route, handler, options) {
-    const rateLimit = options ? options.rateLimitPerMinute : null;
+    const rateLimit = (options && options.rateLimitPerMinute)
+      ? teamData.makeRateLimiter(options.rateLimitPerMinute)
+      : null;
 
     app.post(route, (req, res) => {
       callHandler(handler, req.body, req, res, rateLimit);

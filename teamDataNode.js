@@ -87,11 +87,6 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
 };
 
 module.exports.makeRateLimiter = function makeRateLimiter(rateLimitPerMinute) {
-  if (!rateLimitPerMinute) {
-    // return a noop
-    return () => Promise.resolve();
-  }
-
   const limit = rateLimiter.create({
     redis: redisClient,
     key: getTeamIdFromReq,
