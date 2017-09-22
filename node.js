@@ -63,14 +63,13 @@ function returnPromise(fn) {
 }
 
 async function callHandler(handler, data, req, res, rateLimit) {
-  if (rateLimit) {
-    console.log("LIMITING")
-    await rateLimit(req);
-  }
-
   let response;
 
   try {
+    if (rateLimit) {
+      await rateLimit(req);
+    }
+
     response = await returnPromise(() => handler({
       data,
       session: sessionAPI(req),
