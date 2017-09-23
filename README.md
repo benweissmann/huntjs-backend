@@ -174,4 +174,4 @@ by Webpack's DefinePlugin).
 `HUNT_PORT`: What port to serve on
 
 `HUNT_CORS_ORIGIN`: What origin to permit CORS requests from (or `*` to permit
-from all origins)
+from all origins). Can be comma-separated.

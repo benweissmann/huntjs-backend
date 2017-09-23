@@ -29,9 +29,18 @@ app.use(session({
   saveUninitialized: false,
   store: sessionStore,
 }));
+
+const corsAllowAll = (process.env.HUNT_CORS_ORIGIN === '*');
+const corsAllowedOrigins = process.env.HUNT_CORS_ORIGIN.split(',');
 app.use(cors({
   credentials: true,
-  origin: process.env.HUNT_CORS_ORIGIN,
+  origin(origin, callback) {
+    if (corsAllowAll) {
+      callback(null, true);
+    } else {
+      callback(null, corsAllowedOrigins.includes(origin));
+    }
+  },
 }));
 
 function sessionAPI(req) {
