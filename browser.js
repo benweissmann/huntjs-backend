@@ -20,7 +20,7 @@ examining this code or avoiding the rate-limiting.
 const APP_NAME = HUNT_APP_NAME;
 
 // initialize localStorage
-const LOCAL_STORAGE_KEY = 'huntjs:sessiondata:' + APP_NAME;
+const LOCAL_STORAGE_KEY = `huntjs:sessiondata:${APP_NAME}`;
 if (!localStorage[LOCAL_STORAGE_KEY]) {
   localStorage[LOCAL_STORAGE_KEY] = {};
 }

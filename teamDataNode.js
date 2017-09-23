@@ -96,7 +96,6 @@ module.exports.makeRateLimiter = function makeRateLimiter(rateLimitPerMinute) {
   return function applyLimit(req) {
     return new Promise((resolve, reject) => {
       limit(req, (err, rate) => {
-        console.log("LIMIT RES", rate)
         if (err) {
           reject(err);
           return;

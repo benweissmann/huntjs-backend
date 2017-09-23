@@ -9,19 +9,37 @@ Your backend endpoints can accept GET or POST requests. GET requests can accept
 JSON-encoded data as the "data" query parameter. POST requests can accept
 JSON or url-encoded bodies. Backend endpoints always return JSON data.
 
-Backend endpoints can also read/write from session data. During the Hunt, this
+Backend endpoints can read/write from session data. During the Hunt, this
 data will be stored in a MySQL database where it won't be accessible to
 hunters -- browsers will just get a session ID, cryptographically signed to
 prevent forgery. After the hunt, session data will be stored in localStorage
-in the user's browser.
+in the user's browser. While hunters can't tamper with session data, they
+can reset thier session at any time by clearing their cookies (at which
+point they'll get a new session ID and new session data).
+
+Backend endpoints can also read/write team-wide data. Like session data, this
+data is stored in a MySQL database during the hunt (and in localStorage after
+the hunt). However, team data is accessed based on teams' login credentials --
+so every hunter on a team shares the same data, and teams can't reset their
+team data (unless you create a backend endpoint that allows them to do so).
+
+Lastly, backend endpoint can have rate-limits to prevent brute-forcing. Rate
+limits are defined in requests per minute.
+
+## Technical implementation
 
 This NPM package uses two different implementations with the same API -- when
 required in Node.JS, it acts as a thin wrapper around Express. When bundled
 for the browser by Webpack (or most other bundlers, like Browserify), it
-exposes an API that HuntJS-client can call as `window.__huntjs__`.
+exposes an API that HuntJS-client can call as `window.__huntjs__`. Persistent
+data (for session and team data) is stored in MySQL. Rate-limiting is handled
+by Redis.
 
 
 ## Quickstart
+
+You probably want to copy the puzzle template to start working with HuntJS,
+but you can also do it yourself:
 
 ```
 import HuntJS from 'huntjs-server';

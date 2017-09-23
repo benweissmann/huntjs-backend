@@ -95,8 +95,6 @@ module.exports = {
       ? teamData.makeRateLimiter(options.rateLimitPerMinute)
       : null;
 
-    console.log("RATE LIMITER", rateLimit);
-
     app.get(route, (req, res) => {
       let data;
       if (req.query.data) {

@@ -1,7 +1,7 @@
 /* eslint-env browser */
 
 module.exports = function teamData(appName) {
-  const LOCAL_STORAGE_KEY = 'huntjs:teamdata:' + appName;
+  const LOCAL_STORAGE_KEY = `huntjs:teamdata:${appName}`;
   return {
     get(opts) {
       const defaultValue = opts ? opts.defaultValue : undefined;
