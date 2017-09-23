@@ -169,11 +169,9 @@ by Webpack's DefinePlugin).
 
 ### Server Configuration
 
-`HUNT_CORS_ALLOW_ALL`: Allow requests from any origin with CORS.
-
-`HUNT_CORS_WHITELIST`: Comma-separated list of origins permitted to access this
-backend with CORS.
-
 `HUNT_SESSION_SECRET`: A random secret used to sign session cookies.
 
 `HUNT_PORT`: What port to serve on
+
+`HUNT_CORS_ORIGIN`: What origin to permit CORS requests from (or `*` to permit
+from all origins)

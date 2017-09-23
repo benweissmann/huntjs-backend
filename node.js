@@ -29,7 +29,10 @@ app.use(session({
   saveUninitialized: false,
   store: sessionStore,
 }));
-app.use(cors());
+app.use(cors({
+  credentials: true,
+  origin: process.env.HUNT_CORS_ORIGIN,
+}));
 
 function sessionAPI(req) {
   return {
