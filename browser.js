@@ -19,11 +19,7 @@ examining this code or avoiding the rate-limiting.
 // filled in by webpack
 const APP_NAME = HUNT_APP_NAME;
 
-// initialize localStorage
 const LOCAL_STORAGE_KEY = `huntjs:sessiondata:${APP_NAME}`;
-if (!localStorage[LOCAL_STORAGE_KEY]) {
-  localStorage[LOCAL_STORAGE_KEY] = {};
-}
 
 const session = {
   get(opts) {
@@ -42,7 +38,7 @@ const session = {
     return JSON.parse(localStorage[LOCAL_STORAGE_KEY]);
   },
   set(value) {
-    localStorage[LOCAL_STORAGE_KEY] = value;
+    localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(value);
   },
 };
 

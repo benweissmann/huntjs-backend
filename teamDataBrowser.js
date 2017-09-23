@@ -20,7 +20,7 @@ module.exports = function teamData(appName) {
     },
 
     set(newValue) {
-      localStorage[LOCAL_STORAGE_KEY] = newValue;
+      localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(newValue);
 
       return Promise.resolve();
     },
