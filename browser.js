@@ -26,7 +26,7 @@ const session = {
     const defaultValue = opts ? opts.defaultValue : undefined;
 
     if (!localStorage[LOCAL_STORAGE_KEY]) {
-      localStorage[LOCAL_STORAGE_KEY] = defaultValue;
+      session.set(defaultValue);
     }
 
     const jsonValue = localStorage[LOCAL_STORAGE_KEY];

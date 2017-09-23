@@ -2,12 +2,13 @@
 
 module.exports = function teamData(appName) {
   const LOCAL_STORAGE_KEY = `huntjs:teamdata:${appName}`;
-  return {
+
+  const api = {
     get(opts) {
       const defaultValue = opts ? opts.defaultValue : undefined;
 
       if (!localStorage[LOCAL_STORAGE_KEY]) {
-        localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(defaultValue);
+        api.set(defaultValue);
       }
 
       const jsonValue = localStorage[LOCAL_STORAGE_KEY];
@@ -20,9 +21,15 @@ module.exports = function teamData(appName) {
     },
 
     set(newValue) {
-      localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(newValue);
+      if (newValue === undefined) {
+        delete localStorage[LOCAL_STORAGE_KEY];
+      } else {
+        localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(newValue);
+      }
 
       return Promise.resolve();
     },
   };
+
+  return api;
 };
