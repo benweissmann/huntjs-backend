@@ -40,7 +40,7 @@ const session = {
   },
 };
 
-const team = require('./teamDataNode')(APP_NAME);
+const team = require('./teamDataBrowser')(APP_NAME);
 
 function returnPromise(fn) {
   let result;
