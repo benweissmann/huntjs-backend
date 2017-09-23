@@ -1,10 +1,10 @@
 {
-  "name": "libhunt-server",
+  "name": "huntjs-backend",
   "version": "1.0.0",
   "description": "Library for building Hunt puzzle backends",
   "main": "node.js",
   "browser": "browser.js",
-  "repository": "https://github.com/benweissmann/libhunt-server",
+  "repository": "https://github.com/benweissmann/huntjs-backend",
   "author": "Ben Weissmann",
   "license": "MIT",
   "devDependencies": {
