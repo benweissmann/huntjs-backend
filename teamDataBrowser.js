@@ -7,10 +7,16 @@ module.exports = function teamData(appName) {
       const defaultValue = opts ? opts.defaultValue : undefined;
 
       if (!localStorage[LOCAL_STORAGE_KEY]) {
-        localStorage[LOCAL_STORAGE_KEY] = defaultValue;
+        localStorage[LOCAL_STORAGE_KEY] = JSON.stringify(defaultValue);
       }
 
-      return Promise.resolve(localStorage[LOCAL_STORAGE_KEY]);
+      const jsonValue = localStorage[LOCAL_STORAGE_KEY];
+
+      if (jsonValue === undefined) {
+        return Promise.resolve(undefined);
+      }
+
+      return Promise.resolve(JSON.parse(localStorage[LOCAL_STORAGE_KEY]));
     },
 
     set(newValue) {

@@ -29,11 +29,17 @@ const session = {
   get(opts) {
     const defaultValue = opts ? opts.defaultValue : undefined;
 
-    if (defaultValue && !localStorage[LOCAL_STORAGE_KEY]) {
+    if (!localStorage[LOCAL_STORAGE_KEY]) {
       localStorage[LOCAL_STORAGE_KEY] = defaultValue;
     }
 
-    return localStorage[LOCAL_STORAGE_KEY];
+    const jsonValue = localStorage[LOCAL_STORAGE_KEY];
+
+    if (jsonValue === undefined) {
+      return undefined;
+    }
+
+    return JSON.parse(localStorage[LOCAL_STORAGE_KEY]);
   },
   set(value) {
     localStorage[LOCAL_STORAGE_KEY] = value;
