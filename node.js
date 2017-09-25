@@ -116,6 +116,17 @@ async function callHandler(handler, data, req, res, rateLimit) {
 // Define a healthz endpoint for GCP and Kubernetes health-checking
 app.get('/healthz', (req, res) => res.status(200).json({ healthy: true }));
 
+// Redirect HTTP -> HTTPS
+if (process.env.HUNT_REDIRECT_HTTP) {
+  app.use((req, res, next) => {
+    if (req.secure || (req.originalUrl === '/healthz')) {
+      next();
+    } else {
+      res.redirect(`https://${req.hostname}${req.originalUrl}`);
+    }
+  });
+}
+
 // Define API for adding endpoints
 module.exports = {
   get(route, handler, options) {
