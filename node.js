@@ -2,8 +2,11 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mysql = require('mysql');
-const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
+const cookieSession = require('cookie-session');
+const crypto = require('crypto');
+const http = require('http');
+const WebSocket = require('ws');
+const url = require('url');
 
 // Construct the MySQL client
 const mysqlPool = mysql.createPool({
@@ -14,29 +17,46 @@ const mysqlPool = mysql.createPool({
   database: process.env.HUNT_MYSQL_DB,
 });
 
-// Construct the session data store
-const sessionStore = new MySQLStore({}, mysqlPool);
+// Set up redis pub/sub
+const pubsub = require('./pubsub')(process.env.HUNT_MYSQL_DB);
 
-// Set up team data store
+// Set up data stores
 const teamData = require('./teamDataNode');
+const sessionData = require('./sessionDataNode');
 
 teamData.initDB(mysqlPool);
+sessionData.initDB(mysqlPool);
 
 // Set up the app
 const app = express();
+const server = http.createServer(app);
 
 // Parse JSON and URL-encoded bodies
 app.use(bodyParser.json({ extended: false }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
-// Add session data middleware
-app.use(session({
-  key: 'huntjs_session',
-  secret: process.env.HUNT_SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: sessionStore,
+// Assign session IDs
+app.use(cookieSession({
+  name: 'huntjs_sessionid',
+  keys: [process.env.HUNT_SESSION_SECRET],
+  maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
 }));
+
+app.use((req, res, next) => {
+  if (!req.session.id) {
+    crypto.randomBytes(16, (err, bytes) => {
+      if (err) {
+        console.error('Error getting random bytes for session:');
+        console.error(err);
+        res.status(500).json({ error: 'Server Error' });
+      }
+      req.session.id = bytes.toString('hex');
+      next();
+    });
+  } else {
+    next();
+  }
+});
 
 // Add CORS middleware
 const corsAllowAll = (process.env.HUNT_CORS_ORIGIN === '*');
@@ -51,24 +71,6 @@ app.use(cors({
     }
   },
 }));
-
-// API for endpoints to interact with session data
-function sessionAPI(req) {
-  return {
-    get(opts) {
-      const defaultValue = opts ? opts.defaultValue : undefined;
-
-      if ((defaultValue !== undefined) && !req.session.data) {
-        req.session.data = defaultValue;
-      }
-
-      return req.session.data;
-    },
-    set(value) {
-      req.session.data = value;
-    },
-  };
-}
 
 // Wraps a maybe-asynchronous function to always return a promise
 function returnPromise(fn) {
@@ -86,18 +88,19 @@ function returnPromise(fn) {
 }
 
 // Calls a GET/POST handler defined by the app
-async function callHandler(handler, data, req, res, rateLimit) {
+async function callHandler(handler, data, req, res, rateLimiters) {
   let response;
 
   try {
-    if (rateLimit) {
-      await rateLimit(req);
-    }
+    await Promise.all(rateLimiters.map(limiter => limiter(req)));
 
     response = await returnPromise(() => handler({
       data,
-      session: sessionAPI(req),
+      session: sessionData.sessionAPI(req, mysqlPool),
       team: teamData.teamAPI(req, mysqlPool),
+      pubsub: {
+        publish: pubsub.publish,
+      },
     }));
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -119,7 +122,7 @@ app.get('/healthz', (req, res) => res.status(200).json({ healthy: true }));
 // Redirect HTTP -> HTTPS
 if (process.env.HUNT_REDIRECT_HTTP) {
   app.use((req, res, next) => {
-    if (req.secure || (req.originalUrl === '/healthz')) {
+    if (req.secure || (req.headers['x-forwarded-proto'] === 'https') || (req.originalUrl === '/healthz')) {
       next();
     } else {
       res.redirect(`https://${req.hostname}${req.originalUrl}`);
@@ -127,12 +130,66 @@ if (process.env.HUNT_REDIRECT_HTTP) {
   });
 }
 
+function makeRateLimiters(options) {
+  const rateLimiters = [];
+
+  if (options && options.rateLimitPerMinute) {
+    rateLimiters.push(teamData.makeRateLimiter(
+      options.rateLimitPerMinute,
+      60,
+    ));
+  }
+
+  if (options && options.sessionRateLimit) {
+    rateLimiters.push(sessionData.makeRateLimiter(
+      options.sessionRateLimit.limit,
+      options.sessionRateLimit.window,
+    ));
+  }
+
+  return rateLimiters;
+}
+
+// Add websocket handling
+const wss = new WebSocket.Server({ server });
+wss.on('connection', (ws, req) => {
+  const location = url.parse(req.url, true);
+  // You might use location.query.access_token to authenticate or share sessions
+  // or req.headers.cookie (see http://stackoverflow.com/a/16395220/151312)
+
+  if (location.pathname !== '/huntjs_subscribe') {
+    console.warn('Got WS connection for invalid path', location.pathname);
+    ws.close();
+    return;
+  }
+
+  const channel = location.query.channel;
+  if (!channel || !/^[a-zA-Z0-9_]+$/.test(channel)) {
+    console.warn('Got WS connection for invalid channel', channel);
+    ws.close();
+    return;
+  }
+
+  console.log(`Got new client for channel: ${channel}`);
+
+  const unsub = pubsub.subscribe(channel, (msg) => {
+    ws.send(msg);
+  });
+
+  ws.on('close', () => {
+    unsub();
+    console.log(`Client left channel: ${channel}`);
+  });
+
+  ws.on('message', (message) => {
+    console.warn('websocket received', message);
+  });
+});
+
 // Define API for adding endpoints
 module.exports = {
   get(route, handler, options) {
-    const rateLimit = (options && options.rateLimitPerMinute)
-      ? teamData.makeRateLimiter(options.rateLimitPerMinute)
-      : null;
+    const rateLimiters = makeRateLimiters(options);
 
     app.get(route, (req, res) => {
       let data;
@@ -147,23 +204,21 @@ module.exports = {
         }
       }
 
-      callHandler(handler, data, req, res, rateLimit);
+      callHandler(handler, data, req, res, rateLimiters);
     });
   },
 
   post(route, handler, options) {
-    const rateLimit = (options && options.rateLimitPerMinute)
-      ? teamData.makeRateLimiter(options.rateLimitPerMinute)
-      : null;
+    const rateLimiters = makeRateLimiters(options);
 
     app.post(route, (req, res) => {
-      callHandler(handler, req.body, req, res, rateLimit);
+      callHandler(handler, req.body, req, res, rateLimiters);
     });
   },
 
   serve() {
     const port = Number(process.env.HUNT_PORT);
-    app.listen(port, () => {
+    server.listen(port, () => {
       // eslint-disable-next-line no-console
       console.log(`App listening on port ${port}`);
     });

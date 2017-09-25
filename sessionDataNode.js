@@ -1,38 +1,26 @@
 const rateLimiter = require('redis-rate-limiter');
 
 const kvStore = require('./mysqlKVStore')({
-  tableName: 'team_data',
-  keyColumn: 'team',
+  tableName: 'session_data',
+  keyColumn: 'session_id',
   valueColumn: 'data',
 });
 
 const applyRateLimiter = require('./applyRateLimiter');
 const redisClient = require('./redisClient');
 
-function getTeamIdFromReq(req) {
-  // TODO: look at session token in req, get team ID from auth DB
-  return 'test-team';
+function getSessionIdFromReq(req) {
+  return req.session.id;
 }
 
-module.exports.teamAPI = function teamAPI(req, mysqlPool) {
-  let teamId;
-
-  // lazily fetch team ID when needed
-  function getTeamId() {
-    if (!teamId) {
-      teamId = getTeamIdFromReq(req);
-    }
-
-    return teamId;
-  }
-
+module.exports.sessionAPI = function sessionAPI(req, mysqlPool) {
   // load team data
   function get(opts) {
-    return kvStore.get(mysqlPool, getTeamId(), opts);
+    return kvStore.get(mysqlPool, getSessionIdFromReq(req), opts);
   }
 
   function set(newValue) {
-    return kvStore.set(mysqlPool, getTeamId(), newValue);
+    return kvStore.set(mysqlPool, getSessionIdFromReq(req), newValue);
   }
 
   return { get, set };
@@ -41,7 +29,7 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
 module.exports.makeRateLimiter = function makeRateLimiter(limit, windowSeconds) {
   const limiter = rateLimiter.create({
     redis: redisClient,
-    key: getTeamIdFromReq,
+    key: getSessionIdFromReq,
     limit,
     window: windowSeconds,
   });
