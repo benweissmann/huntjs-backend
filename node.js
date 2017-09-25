@@ -5,6 +5,7 @@ const mysql = require('mysql');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 
+// Construct the MySQL client
 const mysqlPool = mysql.createPool({
   host: process.env.HUNT_MYSQL_HOST,
   port: Number(process.env.HUNT_MYSQL_PORT),
@@ -12,16 +13,23 @@ const mysqlPool = mysql.createPool({
   password: process.env.HUNT_MYSQL_PASSWORD,
   database: process.env.HUNT_MYSQL_DB,
 });
+
+// Construct the session data store
 const sessionStore = new MySQLStore({}, mysqlPool);
 
-
+// Set up team data store
 const teamData = require('./teamDataNode');
 
 teamData.initDB(mysqlPool);
 
+// Set up the app
 const app = express();
+
+// Parse JSON and URL-encoded bodies
 app.use(bodyParser.json({ extended: false }));
 app.use(bodyParser.urlencoded({ extended: false }));
+
+// Add session data middleware
 app.use(session({
   key: 'huntjs_session',
   secret: process.env.HUNT_SESSION_SECRET,
@@ -30,6 +38,7 @@ app.use(session({
   store: sessionStore,
 }));
 
+// Add CORS middleware
 const corsAllowAll = (process.env.HUNT_CORS_ORIGIN === '*');
 const corsAllowedOrigins = process.env.HUNT_CORS_ORIGIN.split(',');
 app.use(cors({
@@ -43,6 +52,7 @@ app.use(cors({
   },
 }));
 
+// API for endpoints to interact with session data
 function sessionAPI(req) {
   return {
     get(opts) {
@@ -60,6 +70,7 @@ function sessionAPI(req) {
   };
 }
 
+// Wraps a maybe-asynchronous function to always return a promise
 function returnPromise(fn) {
   let result;
   try {
@@ -74,6 +85,7 @@ function returnPromise(fn) {
   return Promise.resolve(result);
 }
 
+// Calls a GET/POST handler defined by the app
 async function callHandler(handler, data, req, res, rateLimit) {
   let response;
 
@@ -101,6 +113,10 @@ async function callHandler(handler, data, req, res, rateLimit) {
   res.json(response);
 }
 
+// Define a healthz endpoint for GCP and Kubernetes health-checking
+app.get('/healthz', (req, res) => res.status(200).json({ healthy: true }));
+
+// Define API for adding endpoints
 module.exports = {
   get(route, handler, options) {
     const rateLimit = (options && options.rateLimitPerMinute)
@@ -142,6 +158,7 @@ module.exports = {
     });
   },
 
+  // Helper that constructs an error with statusCode and userMessage properties
   Error(statusCode, userMessage) {
     const err = new Error(userMessage);
     err.statusCode = statusCode;
