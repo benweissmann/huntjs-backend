@@ -35,7 +35,11 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
     return kvStore.set(mysqlPool, getTeamId(), newValue);
   }
 
-  return { get, set };
+  function id() {
+    return getTeamId();
+  }
+
+  return { get, set, id };
 };
 
 module.exports.makeRateLimiter = function makeRateLimiter(limit, windowSeconds) {

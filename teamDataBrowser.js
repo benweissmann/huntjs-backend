@@ -29,6 +29,10 @@ module.exports = function teamData(appName) {
 
       return Promise.resolve();
     },
+
+    id() {
+      return 'localteam';
+    },
   };
 
   return api;

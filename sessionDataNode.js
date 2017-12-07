@@ -23,7 +23,11 @@ module.exports.sessionAPI = function sessionAPI(req, mysqlPool) {
     return kvStore.set(mysqlPool, getSessionIdFromReq(req), newValue);
   }
 
-  return { get, set };
+  function id() {
+    getSessionIdFromReq(req);
+  }
+
+  return { get, set, id };
 };
 
 module.exports.makeRateLimiter = function makeRateLimiter(limit, windowSeconds) {
