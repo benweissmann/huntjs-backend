@@ -248,4 +248,6 @@ module.exports = {
 
     return err;
   },
+
+  _mysql: mysqlPool,
 };
