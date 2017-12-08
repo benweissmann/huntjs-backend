@@ -97,10 +97,7 @@ async function callHandler(handler, data, req, res, rateLimiters) {
     response = await returnPromise(() => handler({
       data,
       session: sessionData.sessionAPI(req, mysqlPool),
-      team: teamData.teamAPI(req, mysqlPool),
-      pubsub: {
-        publish: pubsub.publish,
-      },
+      team: teamData.teamAPI(req, mysqlPool, pubsub),
     }));
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -170,9 +167,11 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  console.log(`Got new client for channel: ${channel}`);
+  const teamId = teamData.getTeamIdFromReq(req);
 
-  const unsub = pubsub.subscribe(channel, (msg) => {
+  console.log(`Got new client for teamId ${teamId} and channel ${channel}`);
+
+  const unsub = pubsub.subscribe(`${teamId}:${channel}`, (msg) => {
     ws.send(msg);
   });
 

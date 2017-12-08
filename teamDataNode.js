@@ -13,8 +13,9 @@ function getTeamIdFromReq(req) {
   // TODO: look at session token in req, get team ID from auth DB
   return 'test-team';
 }
+module.exports.getTeamIdFromReq = getTeamIdFromReq;
 
-module.exports.teamAPI = function teamAPI(req, mysqlPool) {
+module.exports.teamAPI = function teamAPI(req, mysqlPool, pubsub) {
   let teamId;
 
   // lazily fetch team ID when needed
@@ -35,11 +36,15 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool) {
     return kvStore.set(mysqlPool, getTeamId(), newValue);
   }
 
+  function publish(channel, message) {
+    pubsub.publish(`${getTeamId()}:${channel}`, message);
+  }
+
   function id() {
     return getTeamId();
   }
 
-  return { get, set, id };
+  return { get, set, publish, id };
 };
 
 module.exports.makeRateLimiter = function makeRateLimiter(limit, windowSeconds) {
