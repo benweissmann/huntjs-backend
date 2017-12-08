@@ -148,6 +148,7 @@ function makeRateLimiters(options) {
 }
 
 // Add websocket handling
+const channelSubscribers = {};
 const wss = new WebSocket.Server({ server });
 wss.on('connection', (ws, req) => {
   const location = url.parse(req.url, true);
@@ -183,6 +184,14 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (message) => {
     console.warn('websocket received', message);
   });
+
+  if (channelSubscribers[channel]) {
+    channelSubscribers[channel].forEach((sub) => {
+      returnPromise(() => sub({
+        team: teamData.teamAPI(req, mysqlPool, pubsub),
+      })).catch(e => console.error('Error in onSubscribe handler', e));
+    });
+  }
 });
 
 // Define API for adding endpoints
@@ -213,6 +222,14 @@ module.exports = {
     app.post(route, (req, res) => {
       callHandler(handler, req.body, req, res, rateLimiters);
     });
+  },
+
+  onSubscribe(channel, handler) {
+    if (!channelSubscribers[channel]) {
+      channelSubscribers[channel] = [];
+    }
+
+    channelSubscribers[channel].push(handler);
   },
 
   serve() {
