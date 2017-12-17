@@ -18,6 +18,7 @@ const mysqlPool = mysql.createPool({
 });
 
 // Set up redis pub/sub
+const redis = require('./redisClient');
 const pubsub = require('./pubsub')(process.env.HUNT_MYSQL_DB);
 
 // Set up data stores
@@ -250,4 +251,5 @@ module.exports = {
   },
 
   _mysql: mysqlPool,
+  _redis: redis,
 };
