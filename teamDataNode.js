@@ -10,9 +10,13 @@ const applyRateLimiter = require('./applyRateLimiter');
 const redisClient = require('./redisClient');
 
 function getTeamIdFromReq(req) {
-  // TODO: look at session token in req, get team ID from auth DB
-  return 'test-team';
+  if (!req.huntTeamId) {
+    throw new Error('No req.huntTeamId');
+  }
+
+  return req.huntTeamId;
 }
+
 module.exports.getTeamIdFromReq = getTeamIdFromReq;
 
 module.exports.teamAPI = function teamAPI(req, mysqlPool, pubsub) {

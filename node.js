@@ -7,6 +7,9 @@ const crypto = require('crypto');
 const http = require('http');
 const WebSocket = require('ws');
 const url = require('url');
+const morgan = require('morgan');
+const basicAuth = require('basic-auth');
+const jwt = require('jsonwebtoken');
 
 // Construct the MySQL client
 const mysqlPool = mysql.createPool({
@@ -32,6 +35,19 @@ sessionData.initDB(mysqlPool);
 const app = express();
 const server = http.createServer(app);
 
+// First middleware: healthz returns 200 immediately without any other processing
+app.use((req, res, next) => {
+  if (req.path === '/healthz') {
+    res.status(200).json({ ok: true });
+  } else {
+    next();
+  }
+});
+
+// Add logging middleware
+morgan.token('hunt-team', req => (req.huntTeamId ? `team: ${req.huntTeamId}` : 'unauthenticated'));
+app.use(morgan(':method :url | :hunt-team | :status - :res[content-length] bytes - :response-time ms'));
+
 // Parse JSON and URL-encoded bodies
 app.use(bodyParser.json({ extended: false }));
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -50,6 +66,8 @@ app.use((req, res, next) => {
         console.error('Error getting random bytes for session:');
         console.error(err);
         res.status(500).json({ error: 'Server Error' });
+
+        return;
       }
       req.session.id = bytes.toString('hex');
       next();
@@ -72,6 +90,66 @@ app.use(cors({
     }
   },
 }));
+
+// Auth authentication middleware
+function validateAuth(username, password) {
+  if (password === 'dev') {
+    if (process.env.HUNT_AUTH_ALLOW_DEV !== 'true') {
+      throw new Error('Dev login forbidden');
+    }
+
+    return;
+  } else if (password.startsWith('jwt/')) {
+    const reqJWT = password.slice(4);
+    const decodedJWT = jwt.verify(reqJWT, process.env.HUNT_AUTH_JWT_SECRET, {
+      algorithms: ['HS256'],
+    });
+
+    if (decodedJWT.username !== username) {
+      throw new Error('JWT username did not match request username');
+    }
+
+    if (decodedJWT.puzzle !== process.env.HUNT_CANONICAL_PUZZLE_ID) {
+      throw new Error('JWT puzzle did not match this puzzle\'s ID');
+    }
+
+    return;
+  } else if (password.startsWith('admin/')) {
+    const submittedPW = password.slice(6);
+
+    if (!process.env.HUNT_AUTH_ADMIN_PW) {
+      throw new Error('Admin login disabled');
+    }
+
+    if (process.env.HUNT_AUTH_ADMIN_PW !== submittedPW) {
+      throw new Error('Admin password incorrect');
+    }
+
+    return;
+  }
+
+  throw new Error('Basic auth password was not in an acceptable format');
+}
+
+app.use((req, res, next) => {
+  const user = basicAuth(req);
+
+  if (!user) {
+    res.status(400).json({ error: 'No Basic Auth provided, or Authorization header was invalid' });
+    return;
+  }
+
+  try {
+    validateAuth(user.name, user.pass);
+    req.huntTeamId = user.name;
+  } catch (err) {
+    res.status(400).json({ error: 'Basic auth credentials were invalid', details: err.message });
+    return;
+  }
+
+  next();
+});
+
 
 // Wraps a maybe-asynchronous function to always return a promise
 function returnPromise(fn) {
@@ -169,7 +247,19 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
-  const teamId = teamData.getTeamIdFromReq(req);
+  if ((!location.query.username) || (!location.query.password)) {
+    console.log('Got a WS connection missing username or password', location.query);
+  }
+
+  try {
+    validateAuth(location.query.username, location.query.password);
+  } catch (e) {
+    console.warn('Got a WS connection with invalid username/password', location.query);
+    ws.close();
+    return;
+  }
+
+  const teamId = location.query.username;
 
   console.log(`Got new client for teamId ${teamId} and channel ${channel}`);
 
