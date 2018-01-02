@@ -260,6 +260,7 @@ wss.on('connection', (ws, req) => {
   }
 
   const teamId = location.query.username;
+  req.huntTeamId = teamId;
 
   console.log(`Got new client for teamId ${teamId} and channel ${channel}`);
 
