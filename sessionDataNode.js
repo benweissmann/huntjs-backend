@@ -24,7 +24,7 @@ module.exports.sessionAPI = function sessionAPI(req, mysqlPool) {
   }
 
   function id() {
-    getSessionIdFromReq(req);
+    return getSessionIdFromReq(req);
   }
 
   return { get, set, id };
