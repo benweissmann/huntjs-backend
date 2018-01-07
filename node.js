@@ -150,6 +150,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Team blacklist
+let blacklist;
+if (process.env.HUNT_TEAM_BLACKLIST) {
+  blacklist = new Set(process.env.HUNT_TEAM_BLACKLIST.split(',').map(s => s.trim()));
+}
+
+app.use((req, res, next) => {
+  if (blacklist && blacklist.has(req.huntTeamId)) {
+    res.status(400).json({ error: 'Your team has been blacklisted from this puzzle. Please contact HQ.' });
+    return;
+  }
+
+  next();
+});
+
 
 // Wraps a maybe-asynchronous function to always return a promise
 function returnPromise(fn) {
