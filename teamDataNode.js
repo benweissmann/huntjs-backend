@@ -17,6 +17,10 @@ function getTeamIdFromReq(req) {
   return req.huntTeamId;
 }
 
+function getRateLimitKeyFromReq(req) {
+  return `${getTeamIdFromReq(req)}:${req.path}`;
+}
+
 module.exports.getTeamIdFromReq = getTeamIdFromReq;
 
 module.exports.teamAPI = function teamAPI(req, mysqlPool, pubsub) {
@@ -54,7 +58,7 @@ module.exports.teamAPI = function teamAPI(req, mysqlPool, pubsub) {
 module.exports.makeRateLimiter = function makeRateLimiter(limit, windowSeconds) {
   const limiter = rateLimiter.create({
     redis: redisClient,
-    key: getTeamIdFromReq,
+    key: getRateLimitKeyFromReq,
     limit,
     window: windowSeconds,
   });
