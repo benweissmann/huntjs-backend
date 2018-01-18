@@ -4,7 +4,7 @@
 \================================/
 
 This is a client-side version of the server-side code that was used during
-the hunt. During the hunt, this code was not available to hunts (because
+the hunt. During the hunt, this code was not available to hunters (because
 it was run on the server) and it was rate-limited to avoid brute-forcing.
 
 To preserve the spirit of the puzzle, please do not solve the puzzle by
@@ -61,13 +61,44 @@ function returnPromise(fn) {
 const getRoutes = {};
 const postRoutes = {};
 
+const getRoutesRateLimiters = {};
+const postRoutesRateLimiters = {};
+
+function makeRateLimiter(limit, periodMillis) {
+  let count = 0;
+  let lastReset = Date.now();
+
+  return function applyRateLimiter() {
+    if (lastReset < (Date.now() - periodMillis)) {
+      count = 0;
+      lastReset = Date.now();
+    }
+
+    if (count >= limit) {
+      throw new Error(`Rate limit exceeded. Limit is ${limit} per minute.`);
+    }
+
+    count += 1;
+  };
+}
+
+function makeRateLimiterOrNoop(options) {
+  if (options && options.rateLimitPerMinute) {
+    return makeRateLimiter(options.rateLimitPerMinute, 60 * 1000);
+  }
+
+  return () => {};
+}
+
 module.exports = {
-  get(route, handler) {
+  get(route, handler, options) {
     getRoutes[route] = handler;
+    getRoutesRateLimiters[route] = makeRateLimiterOrNoop(options);
   },
 
-  post(route, handler) {
+  post(route, handler, options) {
     postRoutes[route] = handler;
+    postRoutesRateLimiters[route] = makeRateLimiterOrNoop(options);
   },
 
   serve() {
@@ -78,7 +109,10 @@ module.exports = {
     window.__huntjs__[APP_NAME] = {
       get(route, data) {
         if (getRoutes[route]) {
-          return returnPromise(() => getRoutes[route]({ data, session, team }));
+          return returnPromise(() => {
+            getRoutesRateLimiters[route]();
+            return getRoutes[route]({ data, session, team });
+          });
         }
 
         return Promise.reject(new Error('No such GET route'));
@@ -86,7 +120,10 @@ module.exports = {
 
       post(route, data) {
         if (postRoutes[route]) {
-          return returnPromise(() => postRoutes[route]({ data, session, team }));
+          return returnPromise(() => {
+            postRoutesRateLimiters[route]();
+            return postRoutes[route]({ data, session, team });
+          });
         }
 
         return Promise.reject(new Error('No such GET route'));
